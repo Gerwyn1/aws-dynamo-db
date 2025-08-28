@@ -1,5 +1,21 @@
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBDocumentClient,
+  PutCommand,
+  GetCommand,
+  UpdateCommand,
+  DeleteCommand,
+  ScanCommand,
+} from "@aws-sdk/lib-dynamodb";
+import { v4 as uuidv4 } from "uuid";
+import { faker } from "@faker-js/faker";
+
+const client = new DynamoDBClient({});
+const dynamoDB = DynamoDBDocumentClient.from(client);
+const TABLE_NAME = process.env.TABLE_NAME || "";
+
 export const handler = async (
   event: APIGatewayProxyEventV2
 ): Promise<APIGatewayProxyResultV2> => {
@@ -62,28 +78,73 @@ export const handler = async (
   }
 };
 
+// create user
 async function createUser(
   event: APIGatewayProxyEventV2
 ): Promise<APIGatewayProxyResultV2> {
+  const { name, email } = JSON.parse(event.body as string);
+  const userId = uuidv4();
+  const user = {
+    id: userId,
+    name,
+    email,
+    createdAt: new Date().toISOString(),
+  };
+
+  // const user = {
+  //   id: userId,
+  //   name: faker.person.fullName(),
+  //   email: faker.internet.email(),
+  //   createdAt: new Date().toISOString(),
+  // };
+
+  await dynamoDB.send(
+    new PutCommand({
+      TableName: TABLE_NAME,
+      Item: user,
+    })
+  );
+
   return {
     statusCode: 201,
-    body: JSON.stringify({ message: "create user" }),
+    body: JSON.stringify(user),
   };
 }
 
+// get all users
 async function getAllUsers(
   event: APIGatewayProxyEventV2
 ): Promise<APIGatewayProxyResultV2> {
+  const result = await dynamoDB.send(
+    new ScanCommand({
+      TableName: TABLE_NAME,
+    })
+  );
+
   return {
     statusCode: 200,
-    body: JSON.stringify({ message: "fetch all users" }),
+    body: JSON.stringify(result.Items || []),
   };
 }
 
 async function getUser(userId: string): Promise<APIGatewayProxyResultV2> {
+  const result = await dynamoDB.send(
+    new GetCommand({
+      TableName: TABLE_NAME,
+      Key: { id: userId },
+    })
+  );
+
+  if (!result.Item) {
+    return {
+      statusCode: 404,
+      body: JSON.stringify({ message: "User not found" }),
+    };
+  }
+
   return {
     statusCode: 200,
-    body: JSON.stringify({ message: "fetch single user" }),
+    body: JSON.stringify(result.Item),
   };
 }
 
@@ -91,15 +152,40 @@ async function updateUser(
   event: APIGatewayProxyEventV2,
   userId: string
 ): Promise<APIGatewayProxyResultV2> {
+  const { name, email } = JSON.parse(event.body!);
+
+  const result = await dynamoDB.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: { id: userId },
+      UpdateExpression: "SET #name = :name, #email = :email",
+      ExpressionAttributeNames: {
+        "#name": "name",
+        "#email": "email",
+      },
+      ExpressionAttributeValues: {
+        ":name": name || null,
+        ":email": email || null,
+      },
+      ReturnValues: "ALL_NEW",
+    })
+  );
+
   return {
     statusCode: 200,
-    body: JSON.stringify({ message: "update user" }),
+    body: JSON.stringify(result.Attributes),
   };
 }
 
 async function deleteUser(userId: string): Promise<APIGatewayProxyResultV2> {
+  await dynamoDB.send(
+    new DeleteCommand({
+      TableName: TABLE_NAME,
+      Key: { id: userId },
+    })
+  );
   return {
     statusCode: 200,
-    body: JSON.stringify({ message: "delete user" }),
+    body: JSON.stringify({ message: `${userId}` }),
   };
 }

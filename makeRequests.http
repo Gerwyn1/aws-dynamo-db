@@ -10,14 +10,15 @@ POST {{URL}}/users
 Content-Type: application/json
 
 {
-    "name": "coding addict"
+    "name": "coding2 addict",
+    "email": "coding2@addict.com"
 }
 
 ### Get a user
-GET {{URL}}/users/1
+GET {{URL}}/users/1c8bcc8d-6282-4dec-bb46-40cf8d4605d7
 
 ### Update a user
-PUT {{URL}}/users/1
+PUT {{URL}}/users/1c8bcc8d-6282-4dec-bb46-40cf8d4605d7
 Content-Type: application/json
 
 {
@@ -26,4 +27,4 @@ Content-Type: application/json
 }
 
 ### Delete a user
-DELETE {{URL}}/users/1
+DELETE {{URL}}/users/1c8bcc8d-6282-4dec-bb46-40cf8d4605d7
